@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오리엔트 공정불량 Manager</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- 헤더 -->
+  <header class="header">
+    <h1>오리엔트 공정불량 Manager</h1>
+    <span id="fileChip" class="chip" hidden></span>
+    <span class="spacer"></span>
+    <button id="btnFile" class="btn" title="엑셀 파일 선택 (Ctrl+O)">파일 변경</button>
+  </header>
+
+  <!-- 안내 화면 (파일 없음/오류) -->
+  <section id="emptyView" class="empty" hidden>
+    <div class="empty-box">
+      <div class="empty-icon">📄</div>
+      <p id="emptyMsg">엑셀 파일을 선택해 주세요.</p>
+      <button id="btnEmptyFile" class="btn primary">파일 선택</button>
+    </div>
+  </section>
+
+  <!-- 본문 -->
+  <section id="mainView" hidden>
+    <nav class="tabs">
+      <button class="tab active" data-tab="list">목록</button>
+      <button class="tab" data-tab="dash">대시보드</button>
+    </nav>
+
+    <div id="periodBar" class="period">
+      <span class="period-title">기간</span>
+      <div class="seg" id="periodModes">
+        <button data-mode="all" class="active">전체</button>
+        <button data-mode="week">주간</button>
+        <button data-mode="month">월간</button>
+        <button data-mode="quarter">분기</button>
+        <button data-mode="custom">기간 설정</button>
+      </div>
+      <span id="baseNav" class="period-nav">
+        <button id="btnPrev" class="btn icon" title="이전">◀</button>
+        <input type="date" id="baseDate" title="기준일">
+        <button id="btnNext" class="btn icon" title="다음">▶</button>
+      </span>
+      <span id="customNav" class="period-nav" hidden>
+        <input type="date" id="startDate" title="시작일"> ~ <input type="date" id="endDate" title="종료일">
+      </span>
+      <span id="periodLabel" class="period-label"></span>
+    </div>
+
+    <!-- 목록 탭 -->
+    <div id="tabList" class="tab-body">
+      <div id="cards" class="cards"></div>
+      <div class="toolbar">
+        <input id="search" type="search" placeholder="검색 (모든 열, Ctrl+F)" autocomplete="off">
+        <span class="spacer"></span>
+        <button id="btnView" class="btn" disabled>조회</button>
+        <button id="btnEdit" class="btn" disabled>수정</button>
+        <button id="btnDelete" class="btn danger" disabled>삭제</button>
+        <button id="btnNew" class="btn primary" title="Ctrl+N">＋ 입력</button>
+      </div>
+      <div id="tableWrap" class="table-wrap" tabindex="0">
+        <table id="grid">
+          <thead><tr id="gridHead"></tr></thead>
+          <tbody id="gridBody"></tbody>
+        </table>
+        <div id="noRows" class="no-rows" hidden>표시할 자료가 없습니다.</div>
+      </div>
+    </div>
+
+    <!-- 대시보드 탭 -->
+    <div id="tabDash" class="tab-body" hidden>
+      <div id="dashHead" class="dash-head"></div>
+      <div class="dash-main card-box">
+        <h2>원인별 비율</h2>
+        <div class="dash-cause">
+          <div id="causePie" class="pie-area"></div>
+          <div id="summaryBox" class="summary"></div>
+        </div>
+      </div>
+      <div class="card-box">
+        <div class="dash-sub-head">
+          <h2 id="dimTitle">전체 원인 상세</h2>
+          <button id="btnAllCause" class="btn" hidden>전체 원인 보기</button>
+        </div>
+        <div id="dimPies" class="dim-pies"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 상태 줄 -->
+  <footer class="status">
+    <span id="toast" class="toast"></span>
+    <span class="spacer"></span>
+    <span id="countText"></span>
+  </footer>
+</div>
+
+<!-- 파일 선택 -->
+<div id="fileModal" class="modal" hidden>
+  <div class="dialog file-dialog" role="dialog" aria-modal="true">
+    <div class="dialog-head"><h3>엑셀 파일 선택</h3><button class="x" data-close>✕</button></div>
+    <div class="dialog-body">
+      <p id="fileMsg" class="file-msg" hidden></p>
+      <p class="muted">서버 폴더: <code id="dataDir"></code></p>
+      <ul id="fileList" class="file-list"></ul>
+      <label class="upload">
+        <input type="file" id="uploadInput" accept=".xlsx,.xlsm">
+        <span class="btn">엑셀 파일 올리기…</span>
+        <span class="muted">.xlsx / .xlsm, 최대 20MB</span>
+      </label>
+      <p id="fileErr" class="form-error" hidden></p>
+    </div>
+  </div>
+</div>
+
+<!-- 입력/조회/수정 폼 -->
+<div id="formModal" class="modal" hidden>
+  <form id="rowForm" class="dialog" role="dialog" aria-modal="true" novalidate>
+    <div class="dialog-head"><h3 id="formTitle"></h3><button type="button" class="x" data-close>✕</button></div>
+    <div class="dialog-body">
+      <div id="formFields" class="form-grid"></div>
+      <p id="formError" class="form-error" hidden></p>
+    </div>
+    <div class="dialog-foot">
+      <span class="muted" id="formHint"></span>
+      <span class="spacer"></span>
+      <button type="button" id="formEditBtn" class="btn primary">수정</button>
+      <button type="submit" id="formSaveBtn" class="btn primary">저장</button>
+      <button type="button" class="btn" data-close id="formCloseBtn">닫기</button>
+    </div>
+  </form>
+</div>
+
+<!-- 삭제 확인 -->
+<div id="delModal" class="modal" hidden>
+  <div class="dialog del-dialog" role="alertdialog" aria-modal="true">
+    <div class="dialog-head"><h3>행 삭제</h3><button class="x" data-close>✕</button></div>
+    <div class="dialog-body">
+      <p><b>이 행을 삭제할까요?</b> 엑셀 파일에서 바로 삭제되며 되돌릴 수 없습니다.</p>
+      <table id="delInfo" class="kv"></table>
+      <p id="delError" class="form-error" hidden></p>
+    </div>
+    <div class="dialog-foot">
+      <span class="spacer"></span>
+      <button id="delOk" class="btn danger">삭제</button>
+      <button id="delCancel" class="btn" data-close>취소</button>
+    </div>
+  </div>
+</div>
+
+<div id="ctxMenu" class="ctx" hidden>
+  <button data-act="view">조회 <kbd>Enter</kbd></button>
+  <button data-act="edit">수정 <kbd>F2</kbd></button>
+  <button data-act="delete" class="danger">삭제 <kbd>Delete</kbd></button>
+</div>
+<div id="tip" class="tip" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
